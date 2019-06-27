@@ -9,6 +9,39 @@
 #include <string>
 #include <thread>
 #include <iostream>
+#include <vector>
+#include <algorithm>
+
+
+void handleClient(int client)
+{
+    char * buf;
+    int buflen;
+    int nread;
+
+    // allocate buffer
+    buflen = 1024;
+    buf = new char[buflen+1];
+
+    // loop to handle all requests
+    while (true) {
+        // read a request
+        memset(buf, 0, buflen);
+        nread = recv(client, buf, buflen, 0);
+        if (nread == 0)
+            break;
+        std::cout << "server received request:\n" << buf << std::endl;
+
+        // send a response
+        send(client, buf, nread, 0);
+    }
+    close(client);
+}
+
+void join_thread(std::thread& t)
+{
+    t.join();
+}
 
 int main(int argc, char **argv)
 {
@@ -16,9 +49,6 @@ int main(int argc, char **argv)
     socklen_t clientlen = sizeof(client_addr);
     int option, port, reuse;
     int server, client;
-    char *buf;
-    int buflen;
-    int nread;
 
     // setup default arguments
     port = 3000;
@@ -62,31 +92,18 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
+    // convert the socket to listen for incoming connections
     if (listen(server, SOMAXCONN) < 0) {
         perror("listen");
         exit(-1);
     }
 
-    // allocate buffer
-    buflen = 1024;
-    buf = new char[buflen+1];
+    std::vector<std::thread> threads;
 
     // accept clients
     while ((client = accept(server, (struct sockaddr *)&client_addr, &clientlen)) > 0) {
-        // loop to handle all requests
-        while (true) {
-            // read a request
-            memset(buf, 0, buflen);
-            nread = recv(client, buf, buflen, 0);
-            if (nread == 0)
-                break;
-            std::cout << "server received request:\n" << buf << std::endl;
-
-            // send a response
-            send(client, buf, nread, 0);
-        }
-        close(client);
+        threads.push_back(std::thread(handleClient, client));
     }
-
     close(server);
+    std::for_each(threads.begin(), threads.end(), join_thread);
 }
