@@ -1,75 +1,135 @@
-#include <arpa/inet.h>
-#include <errno.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #include <string>
-#include <thread>
 #include <iostream>
 
-int main()
+#define MAXDATASIZE 1024
+
+int main(int argc, char **argv)
 {
-    // default arguments
-    int option;
-    int port = 3000;
-    std::string host = "localhost";
-
-    // process command line options using getopt
-
-    // use DNS to get IP address
-    struct hostent *hostEntry;
-    hostEntry = gethostbyname(host.c_str());
-    if (!hostEntry) {
-        std::cout << "No such host name: " << host << std::endl;
+    // process command line arguments
+    if (argc < 2) {
+        std::cerr << "usage: web-client [URL] [URL] ..." << std::endl;
         exit(-1);
     }
 
-    // setup socket address structure
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    memcpy(&server_addr.sin_addr, hostEntry->h_addr_list[0], hostEntry->h_length);
+    std::string paths[argc - 1];
+    std::string hosts[argc - 1];
+    std::string ports[argc - 1];
+    for (int i = 0; i < argc - 1; i++) {
+        std::string url = argv[i + 1];
+        if (url.substr(0,7) == "http://") {
+            url = url.substr(7);
+        }
 
-    // create socket
-    int server = socket(PF_INET, SOCK_STREAM, 0);
-    if (server < 0) {
-        perror("socket");
-        exit(-1);
+        size_t pos = 0;
+        std::string delimiter = "/";
+        if ((pos = url.find(delimiter)) != std::string::npos) {
+            paths[i] = url.substr(pos + delimiter.length());
+            url = url.substr(0, pos);
+        } else {
+            perror("parsing arguments with delimiter /");
+            exit(-1);
+        }
+
+        pos = 0;
+        delimiter = ":";
+        if ((pos = url.find(delimiter)) != std::string::npos) {
+            hosts[i] = url.substr(0, pos);
+            ports[i] = url.substr(pos + delimiter.length() );
+        } else {
+            perror("parse arguments with delimiter :");
+            exit(-1);
+        }
     }
 
-    // connect to server
-    if (connect(server, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("connect");
-        exit(-1);
+	std::cout << "paths: " << std::endl;
+	for (int i = 0; i < argc - 1; i++) {
+		std::cout << "  " << paths[i] << std::endl;
+	}
+	std::cout << "hosts: " << std::endl;
+	for (int i = 0; i < argc - 1; i++) {
+		std::cout << "  " << hosts[i] << std::endl;
+	}
+	std::cout << "ports: " << std::endl;
+	for (int i = 0; i < argc - 1; i++) {
+		std::cout << "  " << ports[i] << std::endl;
+	}
+
+    // for each url
+    for (int i = 0; i < argc - 1; i++) {
+        const char *host = hosts[i].c_str();
+        const char *port = ports[i].c_str();
+
+        int sockfd;
+        struct addrinfo hints, *servinfo, *p;
+        char ipstr[INET_ADDRSTRLEN];
+        int rv;
+
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+
+        if ((rv = getaddrinfo(host, port, &hints, &servinfo)) < 0) {
+            std::cerr << "client: getaddrinfo: " << gai_strerror(rv) << std::endl;
+            exit(1);
+        }
+
+        // loop through all the results and connect to the first we can
+        for (p = servinfo; p != NULL; p = p->ai_next) {
+            if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
+                perror("client: socket");
+                continue;
+            }
+
+            if (connect(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
+                close(sockfd);
+                perror("client: connect");
+                continue;
+            }
+
+            break;
+        }
+
+        if (p == NULL) {
+            std::cerr << "client: failed to connect" << std::endl;
+            exit(1);
+        }
+
+        inet_ntop(p->ai_family, &(((struct sockaddr_in *)&(p->ai_addr))->sin_addr), ipstr, sizeof(ipstr));
+        std::cout << "client: connecting to " << ipstr << std::endl;
+
+        freeaddrinfo(servinfo);
+
+        std::string msg = "test message " + std::to_string(i);
+        if (send(sockfd, msg.c_str(), msg.length(), 0) < 0) {
+            perror("client: send");
+            exit(1);
+        }
+
+        char buf[MAXDATASIZE + 1];
+        int numbytes = 0;
+        memset(buf, '\0', sizeof(buf));
+
+        if ((numbytes = recv(sockfd, buf, MAXDATASIZE, 0)) < 0) {
+            perror("client: recv");
+            exit(1);
+        }
+
+        buf[numbytes] = '\0';
+        std::cout << "client: recv " << buf << std::endl;
+
+        close(sockfd);
     }
 
-    // allocate buffer
-    int buflen = 1024;
-    char* buf = new char[buflen+1];
-
-    std::cout << "Client read line from input" << std::endl;
-    // read a line from standard input
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        // write the data to the server
-        send(server, line.c_str(), line.length(), 0);
-
-        // read the response
-        memset(buf, 0, buflen);
-        recv(server, buf, buflen, 0);
-    
-        // print the response
-        std::cout << "client received response:\n" << buf << std::endl;
-
-    }
-
-    // close socket
-    close(server);
+    return 0;
 }
- 
