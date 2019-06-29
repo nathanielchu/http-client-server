@@ -1,109 +1,129 @@
-#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 #include <string>
-#include <thread>
 #include <iostream>
-#include <vector>
-#include <algorithm>
 
+#define MAXDATASIZE 1024
 
-void handleClient(int client)
-{
-    char * buf;
-    int buflen;
-    int nread;
-
-    // allocate buffer
-    buflen = 1024;
-    buf = new char[buflen+1];
-
-    // loop to handle all requests
-    while (true) {
-        // read a request
-        memset(buf, 0, buflen);
-        nread = recv(client, buf, buflen, 0);
-        if (nread == 0)
-            break;
-        std::cout << "server received request:\n" << buf << std::endl;
-
-        // send a response
-        send(client, buf, nread, 0);
-    }
-    close(client);
-}
-
-void join_thread(std::thread& t)
-{
-    t.join();
+void sigchild_handler(int s) {
+    // waitpid() might overwrite errno, so we save and restore it:
+    int saved_errno = errno;
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+    errno = saved_errno;
 }
 
 int main(int argc, char **argv)
 {
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t clientlen = sizeof(client_addr);
-    int option, port, reuse;
-    int server, client;
+    // default arguments
+    std::string host = "localhost";
+    std::string port = "4000";
 
-    // setup default arguments
-    port = 3000;
+    int sockfd, newfd; // listen on sock_fd, new connection on newfd
+    struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_storage client_addr; // connector's address information
+    socklen_t sin_size;
+    struct sigaction sa;
+    int reuse = 1;
+    char ipstr[INET_ADDRSTRLEN];
+    int rv;
 
-    // process command line options using getopt()
-    while ((option = getopt(argc, argv, "p:")) != -1) {
-        switch (option) {
-            case 'p':
-                port = atoi(optarg);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    
+    if ((rv = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo)) != 0) {
+        std::cerr << "server: getaddrinfo: " << gai_strerror(rv) << std::endl;
+        exit(1);
+    }
 
-                break;
-            default:
-                std::cout << "server [-p port]" << std::endl;
-                exit(EXIT_FAILURE);
+    // loop through all the results and bind to the first we can
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
+            perror("server: socket");
+            continue;
         }
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+            perror("setsockopt");
+            exit(1);
+        }
+
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) < -1) {
+            close(sockfd);
+            perror("server: bind");
+            continue;
+        }
+
+        break;
     }
 
-    // setup socket address structure
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = INADDR_ANY;
+    freeaddrinfo(servinfo);
 
-    // create socket
-    server = socket(PF_INET, SOCK_STREAM, 0);
-    if (!server) {
-        perror("socket");
-        exit(-1);
+    if (p == NULL)  {
+        std::cerr << "server: failed to bind" << std::endl;
+        exit(1);
     }
 
-    // set socket to immediately reuse port when the application closes
-    reuse = 1;
-    if (setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
-        perror("setsockopt");
-        exit(-1);
-    }
-
-    // call bind to associate the socket with our local address and port
-    if (bind(server, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("bind");
-        exit(-1);
-    }
-
-    // convert the socket to listen for incoming connections
-    if (listen(server, SOMAXCONN) < 0) {
+    if (listen(sockfd, SOMAXCONN) == -1) {
         perror("listen");
-        exit(-1);
+        exit(1);
     }
 
-    std::vector<std::thread> threads;
-
-    // accept clients
-    while ((client = accept(server, (struct sockaddr *)&client_addr, &clientlen)) > 0) {
-        threads.push_back(std::thread(handleClient, client));
+    sa.sa_handler = sigchild_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
     }
-    close(server);
-    std::for_each(threads.begin(), threads.end(), join_thread);
+
+    std::cout << "server: waiting for connections..." << std::endl;
+    while (true) { // main accept() loop
+        sin_size = sizeof(client_addr);
+        newfd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+        if (newfd < 0) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(client_addr.ss_family, &(((struct sockaddr_in *)&client_addr)->sin_addr), ipstr, sizeof(ipstr));
+        std::cout << "server: got connection from " << ipstr << std::endl;
+
+        if (!fork()) { // this is the child process
+            close(sockfd); // child does'nt need the listener
+            char buf[MAXDATASIZE + 1];
+            int numbytes = 0;
+            memset(buf, '\0', sizeof(buf));
+
+            if ((numbytes = recv(newfd, buf, MAXDATASIZE, 0)) < 0) {
+                perror("server: recv");
+                exit(1);
+            }
+
+            buf[numbytes] = '\0';
+            std::cout << "server: recv " << buf << std::endl;
+
+            if (send(newfd, buf, numbytes, 0) < 0) {
+                perror("server: send");
+                exit(1);
+            }
+
+            close(newfd);
+            exit(0);
+        }
+        close(newfd); // this is the parent process
+    }
+
+    return 0;
 }
