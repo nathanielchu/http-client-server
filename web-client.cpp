@@ -110,7 +110,12 @@ int main(int argc, char **argv)
 
         freeaddrinfo(servinfo);
 
-        std::string msg = "test message " + std::to_string(i);
+        // send request
+        std::string msg = paths[i];
+        if (msg.length() > MAXDATASIZE) {
+            perror("client: message length");
+            exit(1);
+        }
         if (send(sockfd, msg.c_str(), msg.length(), 0) < 0) {
             perror("client: send");
             exit(1);
@@ -119,6 +124,7 @@ int main(int argc, char **argv)
         char buf[MAXDATASIZE] = {'\0'};
         int numbytes = 0;
 
+        // recv response
         if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) < 0) {
             perror("client: recv");
             exit(1);
