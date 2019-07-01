@@ -116,11 +116,10 @@ int main(int argc, char **argv)
             exit(1);
         }
 
-        char buf[MAXDATASIZE + 1];
+        char buf[MAXDATASIZE] = {'\0'};
         int numbytes = 0;
-        memset(buf, '\0', sizeof(buf));
 
-        if ((numbytes = recv(sockfd, buf, MAXDATASIZE, 0)) < 0) {
+        if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) < 0) {
             perror("client: recv");
             exit(1);
         }

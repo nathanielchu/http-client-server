@@ -28,6 +28,7 @@ int main(int argc, char **argv)
     // default arguments
     std::string host = "localhost";
     std::string port = "4000";
+    std::string dir = "/test";
 
     int sockfd, newfd; // listen on sock_fd, new connection on newfd
     struct addrinfo hints, *servinfo, *p;
@@ -102,11 +103,11 @@ int main(int argc, char **argv)
 
         if (!fork()) { // this is the child process
             close(sockfd); // child does'nt need the listener
-            char buf[MAXDATASIZE + 1];
+            char buf[MAXDATASIZE] = {'\0'};
             int numbytes = 0;
-            memset(buf, '\0', sizeof(buf));
 
-            if ((numbytes = recv(newfd, buf, MAXDATASIZE, 0)) < 0) {
+            // recv request
+            if ((numbytes = recv(newfd, buf, MAXDATASIZE - 1, 0)) < 0) {
                 perror("server: recv");
                 exit(1);
             }
@@ -114,6 +115,10 @@ int main(int argc, char **argv)
             buf[numbytes] = '\0';
             std::cout << "server: recv " << buf << std::endl;
 
+            // fetch file
+            
+            
+            // send response
             if (send(newfd, buf, numbytes, 0) < 0) {
                 perror("server: send");
                 exit(1);
