@@ -13,6 +13,8 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 #define MAXDATASIZE 1024
 
@@ -23,7 +25,27 @@ void sigchild_handler(int s) {
     errno = saved_errno;
 }
 
+// read file into data, returns filelength
+std::string read_file(const std::string dir, const char *path_cstr) 
+{
+    std::string path(path_cstr);
+    char filename[dir.length() + path.length() + 2] = {'\0'};
+    if (dir.substr(0,1) != ".")
+        strcpy(filename, ".");
+    strcat(filename, dir.c_str());
+    strcat(filename, "/");
+    strcat(filename, path.c_str());
+    
+    std::ifstream ifs(filename, std::ios::binary);
+    if (ifs.is_open()) {
+        std::stringstream buffer;
+        buffer << ifs.rdbuf();
+        ifs.close();
+        return buffer.str();
+    }
 
+    return std::string();
+}
 
 int main(int argc, char **argv)
 {
@@ -118,10 +140,14 @@ int main(int argc, char **argv)
             std::cout << "server: recv " << buf << std::endl;
 
             // fetch file
-             
+            std::string file = read_file(dir, buf);
             
             // send response
-            if (send(newfd, buf, numbytes, 0) < 0) {
+            if (file.length() > MAXDATASIZE) {
+                std::cerr << "server: message length" << std::endl;
+                exit(1);
+            }
+            if (send(newfd, file.c_str(), file.length(), 0) < 0) {
                 perror("server: send");
                 exit(1);
             }
