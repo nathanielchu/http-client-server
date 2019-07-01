@@ -37,7 +37,7 @@ int main(int argc, char **argv)
             paths[i] = url.substr(pos + delimiter.length());
             url = url.substr(0, pos);
         } else {
-            perror("parsing arguments with delimiter /");
+            std::cerr << "parsing arguments with delimiter /" << std::endl;
             exit(-1);
         }
 
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
             hosts[i] = url.substr(0, pos);
             ports[i] = url.substr(pos + delimiter.length() );
         } else {
-            perror("parse arguments with delimiter :");
+            std::cerr << "parse arguments with delimiter :" << std::endl;
             exit(-1);
         }
     }
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
         // send request
         std::string msg = paths[i];
         if (msg.length() > MAXDATASIZE) {
-            perror("client: message length");
+            std::cerr << "client: message length" << std::endl;
             exit(1);
         }
         if (send(sockfd, msg.c_str(), msg.length(), 0) < 0) {

@@ -23,6 +23,8 @@ void sigchild_handler(int s) {
     errno = saved_errno;
 }
 
+
+
 int main(int argc, char **argv)
 {
     // default arguments
@@ -76,7 +78,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (listen(sockfd, SOMAXCONN) == -1) {
+    if (listen(sockfd, SOMAXCONN) < 0) {
         perror("listen");
         exit(1);
     }
@@ -116,7 +118,7 @@ int main(int argc, char **argv)
             std::cout << "server: recv " << buf << std::endl;
 
             // fetch file
-            
+             
             
             // send response
             if (send(newfd, buf, numbytes, 0) < 0) {
