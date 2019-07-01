@@ -12,6 +12,8 @@
 #include <string>
 #include <iostream>
 
+#include "fileio.h"
+
 #define MAXDATASIZE 1024
 
 int main(int argc, char **argv)
@@ -132,6 +134,12 @@ int main(int argc, char **argv)
 
         buf[numbytes] = '\0';
         std::cout << "client: recv " << buf << std::endl;
+
+        // write file
+        if (write_file(paths[i], buf, true) < 0) {
+            std::cerr << "failed to write file" << std::endl;
+            exit(1);
+        }
 
         close(sockfd);
     }

@@ -13,8 +13,8 @@
 
 #include <string>
 #include <iostream>
-#include <fstream>
-#include <sstream>
+
+#include "fileio.h"
 
 #define MAXDATASIZE 1024
 
@@ -23,28 +23,6 @@ void sigchild_handler(int s) {
     int saved_errno = errno;
     while(waitpid(-1, NULL, WNOHANG) > 0);
     errno = saved_errno;
-}
-
-// read file into data, returns filelength
-std::string read_file(const std::string dir, const char *path_cstr) 
-{
-    std::string path(path_cstr);
-    char filename[dir.length() + path.length() + 2] = {'\0'};
-    if (dir.substr(0,1) != ".")
-        strcpy(filename, ".");
-    strcat(filename, dir.c_str());
-    strcat(filename, "/");
-    strcat(filename, path.c_str());
-    
-    std::ifstream ifs(filename, std::ios::binary);
-    if (ifs.is_open()) {
-        std::stringstream buffer;
-        buffer << ifs.rdbuf();
-        ifs.close();
-        return buffer.str();
-    }
-
-    return std::string();
 }
 
 int main(int argc, char **argv)
