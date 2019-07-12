@@ -15,6 +15,7 @@
 #include <iostream>
 
 #include "fileio.h"
+#include "http-message.h"
 
 #define MAXDATASIZE 1024
 
@@ -115,7 +116,15 @@ int main(int argc, char **argv)
             }
 
             buf[numbytes] = '\0';
-            std::cout << "server: recv " << buf << std::endl;
+            std::cout << "server: recv\n" << buf << std::endl;
+
+            // parse request
+            HttpRequest req = HttpRequest::parseRequest(std::string(buf));
+            if (req.getWellFormed() == false) {
+                std::cout << "not well formed" << std::endl;
+            } else {
+                std::cout << "serialize:\n" << req.serialize() << std::endl;
+            }
 
             // fetch file
             std::string file = read_file(dir, buf);

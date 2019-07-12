@@ -4,4 +4,5 @@ make clean
 clear
 make
 ./web-server &
-./web-client http://localhost:4000/index.html http://localhost:4000/a.txt
+# ./web-client http://localhost:4000/index.html http://localhost:4000/a.txt
+curl http://localhost:4000/index.html
