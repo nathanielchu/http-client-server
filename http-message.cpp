@@ -19,10 +19,6 @@ HttpMessage::HttpMessage(double version)
     setProtocol(version);
 }
 
-HttpMessage::HttpMessage()
-    : well_formed_(false)
-{}
-
 void HttpMessage::setProtocol(std::string protocol) {
     if (protocol == "HTTP/1.0")
         protocol_ = "HTTP/1.0";
@@ -67,9 +63,11 @@ HttpRequest::HttpRequest(std::string host, std::string uri, std::string protocol
     setHost(host);
 }
 
-HttpRequest::HttpRequest()
-    : HttpMessage()
-{}
+HttpRequest::HttpRequest(std::string protocol)
+    : HttpMessage(protocol)
+{
+    well_formed_ = false;
+}
 
 void HttpRequest::setUri(std::string uri) {
     uri_ = uri;
@@ -159,7 +157,7 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
     }
     if (host.empty()) {
         std::cerr << "http header not well formed" << std::endl;
-        return HttpRequest();
+        return HttpRequest(protocol);
     }
 
     return HttpRequest(host, uri, protocol);
@@ -170,6 +168,10 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
  */
 HttpResponse::HttpResponse(int status, double version, std::string body)
     : HttpMessage(version), status_(status), body_(body)
+{}
+
+HttpResponse::HttpResponse(int status, double version)
+    : HttpMessage(version), status_(status), body_("")
 {}
 
 std::string HttpResponse::serialize() {

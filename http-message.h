@@ -7,7 +7,6 @@ class HttpMessage {
 public:
     HttpMessage(std::string protocol);
     HttpMessage(double version);
-    HttpMessage();
     void setProtocol(std::string protocol);
     void setProtocol(double version);
     void setWellFormed(bool well_formed);
@@ -23,7 +22,7 @@ protected:
 class HttpRequest : public HttpMessage {
 public:
     HttpRequest(std::string host, std::string uri, std::string protocol);
-    HttpRequest();
+    HttpRequest(std::string protocol = "HTTP/1.0");
     void setMethod();
     void setUri(std::string uri);
     void setHost(std::string host);
@@ -43,6 +42,7 @@ protected:
 class HttpResponse : public HttpMessage {
 public:
     HttpResponse(int status, double version, std::string body);
+    HttpResponse(int status, double version = 1.0);
     std::string serialize();
 
     static HttpResponse parseResponse(std::string msg);

@@ -120,20 +120,24 @@ int main(int argc, char **argv)
 
             // parse request
             HttpRequest req = HttpRequest::parseRequest(std::string(buf));
+            int status = 200;
             if (req.getWellFormed() == false) {
                 std::cout << "not well formed" << std::endl;
+                status = 400;
             } else {
                 std::cout << "serialize req:\n" << req.serialize() << std::endl;
             }
 
             // fetch file
             std::string body;
-            int status = 200;
-            if (read_file(dir, req.getUri().c_str(), body) < 0)
-                status = 404;
-            
+            if (status == 200) {
+                if (read_file(dir, req.getUri().c_str(), body) < 0) {
+                    status = 404;
+                }
+            }
+
             // send response
-            HttpResponse res = HttpResponse(status, req.getVersion(), body);
+            HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body) : HttpResponse(status);
             std::string res_msg = res.serialize();
             std::cout << "serialize res: \n" << res_msg << std::endl;
             
