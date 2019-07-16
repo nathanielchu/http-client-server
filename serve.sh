@@ -5,4 +5,4 @@ clear
 make
 ./web-server &
 # ./web-client http://localhost:4000/index.html http://localhost:4000/a.txt
-curl http://localhost:4000/index.html
+wget http://localhost:4000/a.txt

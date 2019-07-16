@@ -123,18 +123,25 @@ int main(int argc, char **argv)
             if (req.getWellFormed() == false) {
                 std::cout << "not well formed" << std::endl;
             } else {
-                std::cout << "serialize:\n" << req.serialize() << std::endl;
+                std::cout << "serialize req:\n" << req.serialize() << std::endl;
             }
 
             // fetch file
-            std::string file = read_file(dir, buf);
+            std::string body;
+            int status = 200;
+            if (read_file(dir, req.getUri().c_str(), body) < 0)
+                status = 404;
             
             // send response
-            if (file.length() > MAXDATASIZE) {
+            HttpResponse res = HttpResponse(status, req.getVersion(), body);
+            std::string res_msg = res.serialize();
+            std::cout << "serialize res: \n" << res_msg << std::endl;
+            
+            if (res_msg.length() > MAXDATASIZE) {
                 std::cerr << "server: message length" << std::endl;
                 exit(1);
             }
-            if (send(newfd, file.c_str(), file.length(), 0) < 0) {
+            if (send(newfd, res_msg.c_str(), res_msg.length(), 0) < 0) {
                 perror("server: send");
                 exit(1);
             }

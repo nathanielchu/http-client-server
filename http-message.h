@@ -6,8 +6,10 @@
 class HttpMessage {
 public:
     HttpMessage(std::string protocol);
+    HttpMessage(double version);
     HttpMessage();
     void setProtocol(std::string protocol);
+    void setProtocol(double version);
     void setWellFormed(bool well_formed);
     
     std::string getProtocol();
@@ -36,6 +38,18 @@ protected:
     std::string method_;
     std::string uri_;
     std::string host_;
+};
+
+class HttpResponse : public HttpMessage {
+public:
+    HttpResponse(int status, double version, std::string body);
+    std::string serialize();
+
+    static HttpResponse parseResponse(std::string msg);
+protected:
+    int status_;
+    double version_;
+    std::string body_;
 };
 
 #endif // HTTP_MESSAGE

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <sstream>
+#include <string>
 
 #include "http-message.h"
 
@@ -11,6 +13,12 @@ HttpMessage::HttpMessage(std::string protocol)
     setProtocol(protocol);
 }
 
+HttpMessage::HttpMessage(double version)
+    : well_formed_(true)
+{
+    setProtocol(version);
+}
+
 HttpMessage::HttpMessage()
     : well_formed_(false)
 {}
@@ -19,6 +27,15 @@ void HttpMessage::setProtocol(std::string protocol) {
     if (protocol == "HTTP/1.0")
         protocol_ = "HTTP/1.0";
     else if (protocol == "HTTP/1.1")
+        protocol_ = "HTTP/1.1";
+    else
+        well_formed_ = false;
+}
+
+void HttpMessage::setProtocol(double version) {
+    if (version == 1.0)
+        protocol_ = "HTTP/1.0";
+    else if (version == 1.1)
         protocol_ = "HTTP/1.1";
     else
         well_formed_ = false;
@@ -80,15 +97,15 @@ void HttpRequest::setHost(std::string host) {
 }
 
 std::string HttpRequest::serialize() {
-    if (getWellFormed() == false)
+    if (well_formed_ == false)
         return "not well formed";
 
-    std::string req;
-    req += method_ + " "
-        + uri_ + " "
-        + protocol_ + "\r\n"
-        + "Host: " + host_ + "\r\n\r\n";
-    return req;
+    std::ostringstream ss;
+    ss << method_ << " "
+        << uri_ << " "
+        << protocol_ << "\r\n"
+        << "Host: " << host_ << "\r\n\r\n";
+    return ss.str();
 }
 
 std::string HttpRequest::getMethod() { return method_; }
@@ -126,17 +143,61 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
         return HttpRequest();
     }
 
-    // parse h
-    // assume Host is on first header line
-    prev = 0;
-    pos = header.find(delim);
-    if (header.substr(0, pos) != "Host:") {
-        std::cerr << "request header host not well formed" << std::endl;
+    // parse header for host
+    std::string host;
+    std::istringstream ss(header);
+    std::string line;
+    while (std::getline(ss, line)) {
+        std::cout << "line: " << line << std::endl;
+        pos = line.find(delim);
+        if (line.substr(0, pos) == "Host:") {
+            prev = pos + 1;
+            pos = line.find('\r');
+            host = line.substr(prev, pos-prev);
+            std::cout << "found host: " << host << std::endl;
+        }
+    }
+    if (host.empty()) {
+        std::cerr << "http header not well formed" << std::endl;
         return HttpRequest();
     }
-    prev = pos + 1;
-    pos = header.find('\r');
-    std::string host = header.substr(prev, pos-prev);
 
     return HttpRequest(host, uri, protocol);
+}
+
+/*
+ * Http Response
+ */
+HttpResponse::HttpResponse(int status, double version, std::string body)
+    : HttpMessage(version), status_(status), body_(body)
+{}
+
+std::string HttpResponse::serialize() {
+    std::ostringstream ss;
+    ss << protocol_ << " ";
+    switch(status_) {
+        case 200:
+            ss << "200 OK";
+            break;
+        case 400:
+            ss << "400 Bad request";
+            break;
+        case 404:
+            ss << "404 Not found";
+            break;
+        default:
+            well_formed_ = false;
+            break;
+    }
+    ss << "\r\n"
+        << "Content-Type: text/html\r\n"
+        << "Content-Length: "
+        << body_.length()
+        << "\r\n\r\n"
+        << body_;
+    return ss.str();
+}
+
+HttpResponse HttpResponse::parseResponse(std::string msg) {
+    return HttpResponse(400, 1.0, "");
 }

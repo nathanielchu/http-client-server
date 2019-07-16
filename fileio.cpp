@@ -4,8 +4,10 @@
 #include <fstream>
 #include <sstream>
 
+#include <iostream>
+
 // read file into data, returns filelength
-std::string read_file(const std::string dir, const char *path_cstr) 
+int read_file(const std::string dir, const char *path_cstr, std::string &body) 
 {
     std::string path(path_cstr);
     char filename[dir.length() + path.length() + 2] = {'\0'};
@@ -20,10 +22,12 @@ std::string read_file(const std::string dir, const char *path_cstr)
         std::stringstream buffer;
         buffer << ifs.rdbuf();
         ifs.close();
-        return buffer.str();
+        body = buffer.str();
+        std::cout << body << std::endl;
+        return 0;
     }
 
-    return std::string();
+    return -1;
 }
 
 // write file
