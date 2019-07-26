@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <iostream>
 
 // read file into data, returns filelength
 int read_file(const std::string dir, const char *path_cstr, std::string &body) 
@@ -23,7 +22,6 @@ int read_file(const std::string dir, const char *path_cstr, std::string &body)
         buffer << ifs.rdbuf();
         ifs.close();
         body = buffer.str();
-        std::cout << body << std::endl;
         return 0;
     }
 

@@ -13,6 +13,7 @@
 #include <iostream>
 
 #include "fileio.h"
+#include "http-message.h"
 
 #define MAXDATASIZE 1024
 
@@ -24,7 +25,7 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    std::string paths[argc - 1];
+    std::string uris[argc - 1];
     std::string hosts[argc - 1];
     std::string ports[argc - 1];
     for (int i = 0; i < argc - 1; i++) {
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
         size_t pos = 0;
         std::string delimiter = "/";
         if ((pos = url.find(delimiter)) != std::string::npos) {
-            paths[i] = url.substr(pos + delimiter.length());
+            uris[i] = url.substr(pos + delimiter.length());
             url = url.substr(0, pos);
         } else {
             std::cerr << "parsing arguments with delimiter /" << std::endl;
@@ -54,9 +55,9 @@ int main(int argc, char **argv)
         }
     }
 
-	std::cout << "paths: " << std::endl;
+	std::cout << "uris: " << std::endl;
 	for (int i = 0; i < argc - 1; i++) {
-		std::cout << "  " << paths[i] << std::endl;
+		std::cout << "  " << uris[i] << std::endl;
 	}
 	std::cout << "hosts: " << std::endl;
 	for (int i = 0; i < argc - 1; i++) {
@@ -113,12 +114,14 @@ int main(int argc, char **argv)
         freeaddrinfo(servinfo);
 
         // send request
-        std::string msg = paths[i];
-        if (msg.length() > MAXDATASIZE) {
+        HttpRequest req = HttpRequest(hosts[i] + ":" + ports[i], uris[i], "HTTP/1.0");
+        std::string req_msg = req.serialize();
+        std::cout << "client: serialize req:\n" << req.serialize() << std::endl;
+        if (req_msg.length() > MAXDATASIZE) {
             std::cerr << "client: message length" << std::endl;
             exit(1);
         }
-        if (send(sockfd, msg.c_str(), msg.length(), 0) < 0) {
+        if (send(sockfd, req_msg.c_str(), req_msg.length(), 0) < 0) {
             perror("client: send");
             exit(1);
         }
@@ -133,13 +136,17 @@ int main(int argc, char **argv)
         }
 
         buf[numbytes] = '\0';
-        std::cout << "client: recv " << buf << std::endl;
+        std::cout << "client: recv\n" << buf << std::endl;
+
+        // parse response
+        HttpResponse res = HttpResponse::parseResponse(std::string(buf), req.getVersion());
+        if (res.getWellFormed() == false) {
+            std::cout << "client: res not well formed" << std::endl;
+        } else {
+            std::cout << "client: serialize res:\n" << res.serialize() << std::endl;
+        }
 
         // write file
-        if (write_file(paths[i], buf, true) < 0) {
-            std::cerr << "failed to write file" << std::endl;
-            exit(1);
-        }
 
         close(sockfd);
     }

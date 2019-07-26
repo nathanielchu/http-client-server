@@ -122,10 +122,10 @@ int main(int argc, char **argv)
             HttpRequest req = HttpRequest::parseRequest(std::string(buf));
             int status = 200;
             if (req.getWellFormed() == false) {
-                std::cout << "not well formed" << std::endl;
+                std::cout << "server: req not well formed" << std::endl;
                 status = 400;
             } else {
-                std::cout << "serialize req:\n" << req.serialize() << std::endl;
+                std::cout << "server: serialize req:\n" << req.serialize() << std::endl;
             }
 
             // fetch file
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
             // send response
             HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body) : HttpResponse(status);
             std::string res_msg = res.serialize();
-            std::cout << "serialize res: \n" << res_msg << std::endl;
+            std::cout << "server: serialize res: \n" << res_msg << std::endl;
             
             if (res_msg.length() > MAXDATASIZE) {
                 std::cerr << "server: message length" << std::endl;

@@ -114,22 +114,19 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
     std::string delim = "\r\n";
     size_t pos = msg.find(delim);
     std::string request_line = msg.substr(0, pos);
-    std::string header = msg.substr(pos+2); // second line
-    std::cout << "request_line: " << request_line << std::endl;
-    std::cout << "header: " << header << std::endl;
+    std::string header = msg.substr(pos+2);
 
     // parse request_line
     delim = " ";
     pos = request_line.find(delim);
-    size_t prev = 0;
-    std::string method = request_line.substr(prev, pos-prev);
+    std::string method = request_line.substr(0, pos);
     // only handle GET requests
     if (method != "GET") {
         std::cerr << "only handle GET requests" << std::endl;
         return HttpRequest();
     }
     
-    prev = pos + 1;
+    size_t prev = pos + 1;
     pos = request_line.find(delim, prev);
     std::string uri = request_line.substr(prev, pos-prev);
     
@@ -141,18 +138,16 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
         return HttpRequest();
     }
 
-    // parse header for host
+    // parse header
     std::string host;
     std::istringstream ss(header);
     std::string line;
     while (std::getline(ss, line)) {
-        std::cout << "line: " << line << std::endl;
         pos = line.find(delim);
         if (line.substr(0, pos) == "Host:") {
             prev = pos + 1;
             pos = line.find('\r');
             host = line.substr(prev, pos-prev);
-            std::cout << "found host: " << host << std::endl;
         }
     }
     if (host.empty()) {
@@ -168,30 +163,37 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
  */
 HttpResponse::HttpResponse(int status, double version, std::string body)
     : HttpMessage(version), status_(status), body_(body)
-{}
+{
+    setReason(status);
+}
 
 HttpResponse::HttpResponse(int status, double version)
     : HttpMessage(version), status_(status), body_("")
-{}
+{
+    setReason(status);
+}
 
-std::string HttpResponse::serialize() {
-    std::ostringstream ss;
-    ss << protocol_ << " ";
-    switch(status_) {
+void HttpResponse::setReason(int status) {
+    switch(status) {
         case 200:
-            ss << "200 OK";
+            reason_phrase_ = "OK";
             break;
         case 400:
-            ss << "400 Bad request";
+            reason_phrase_ = "Bad request";
             break;
         case 404:
-            ss << "404 Not found";
+            reason_phrase_ = "404 Not found";
             break;
         default:
             well_formed_ = false;
             break;
     }
-    ss << "\r\n"
+}
+
+std::string HttpResponse::serialize() {
+    std::ostringstream ss;
+    ss << protocol_ << " " << status_ << reason_phrase_
+        << "\r\n"
         << "Content-Type: text/html\r\n"
         << "Content-Length: "
         << body_.length()
@@ -200,6 +202,32 @@ std::string HttpResponse::serialize() {
     return ss.str();
 }
 
-HttpResponse HttpResponse::parseResponse(std::string msg) {
+HttpResponse HttpResponse::parseResponse(std::string msg, double version) {
+    std::string delim = "\r\n";
+    size_t pos = msg.find(delim);
+    std::string status_line = msg.substr(0, pos);
+    std::string header = msg.substr(pos+2);
+
+    // parse status_line
+    delim = " ";
+    pos = status_line.find(delim);
+    std::string protocol = status_line.substr(0, pos);
+    if (protocol.substr(0, 5) != "HTTP/") {
+        std::cerr << "http protocol not well formed" << std::endl;
+        return HttpResponse(400, version);
+    }
+
+    size_t prev = pos + 1;
+    pos = status_line.find('\r', prev);
+    std::string status = status_line.substr(prev, pos-prev);
+    std::istringstream ss(status);
+    int status_code;
+    char c;
+    if (!(ss >> status_code) || (ss.get(c))) {
+        std::cerr << "http status code not well formed" << std::endl;
+        return HttpResponse(400, version);
+    }
+
+
     return HttpResponse(400, 1.0, "");
 }
