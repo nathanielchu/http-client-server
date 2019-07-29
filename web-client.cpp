@@ -34,9 +34,8 @@ int main(int argc, char **argv)
     // process command line arguments
     if (argc < 2) {
         std::cerr << "usage: web-client [URL] [URL] ..." << std::endl;
-        exit(-1);
+        exit(1);
     }
-
     std::string uris[argc - 1];
     std::string hosts[argc - 1];
     std::string ports[argc - 1];
@@ -53,7 +52,7 @@ int main(int argc, char **argv)
             url = url.substr(0, pos);
         } else {
             std::cerr << "parsing arguments with delimiter /" << std::endl;
-            exit(-1);
+            exit(1);
         }
 
         pos = 0;
@@ -63,7 +62,7 @@ int main(int argc, char **argv)
             ports[i] = url.substr(pos + delimiter.length() );
         } else {
             std::cerr << "parse arguments with delimiter :" << std::endl;
-            exit(-1);
+            exit(1);
         }
     }
 

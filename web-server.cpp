@@ -28,10 +28,14 @@ void sigchild_handler(int s) {
 
 int main(int argc, char **argv)
 {
-    // default arguments
-    std::string host = "localhost";
-    std::string port = "4000";
-    std::string dir = "/test";
+    // process command line arguments
+    if (argc != 4) {
+        std::cerr << "usage: web-server [hostname] [port] [file-dir]" << std::endl;
+        exit(1);
+    }
+    std::string host = argv[1];
+    std::string port = argv[2];
+    std::string dir = argv[3];
 
     int sockfd, newfd; // listen on sock_fd, new connection on newfd
     struct addrinfo hints, *servinfo, *p;
