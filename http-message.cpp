@@ -111,13 +111,12 @@ std::string HttpRequest::serialize() {
 }
 
 HttpRequest HttpRequest::parseRequest(std::string msg) {
-    std::string delim = "\r\n";
-    size_t pos = msg.find(delim);
+    size_t pos = msg.find("\r\n");
     std::string request_line = msg.substr(0, pos);
     std::string header = msg.substr(pos+2);
 
     // parse request_line
-    delim = " ";
+    std::string delim = " ";
     pos = request_line.find(delim);
     std::string method = request_line.substr(0, pos);
     // only handle GET requests
