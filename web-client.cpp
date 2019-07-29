@@ -128,11 +128,11 @@ int main(int argc, char **argv)
         // send request
         HttpRequest req = HttpRequest(hosts[i] + ":" + ports[i], uris[i], "HTTP/1.0");
         std::string req_msg = req.serialize();
-        std::cout << "client: serialize req:\n" << req.serialize() << std::endl;
         if (req_msg.length() > MAXDATASIZE) {
             std::cerr << "client: message length" << std::endl;
             exit(1);
         }
+        std::cout << "client: send req" << std::endl;
         if (send(sockfd, req_msg.c_str(), req_msg.length(), 0) < 0) {
             perror("client: send");
             exit(1);
@@ -146,9 +146,8 @@ int main(int argc, char **argv)
             perror("client: recv");
             exit(1);
         }
-
         buf[numbytes] = '\0';
-        std::cout << "client: recv\n" << buf << std::endl;
+        std::cout << "client: recv" << std::endl;
 
         // parse response
         HttpResponse res = HttpResponse::parseResponse(std::string(buf), req.getVersion());
@@ -156,7 +155,6 @@ int main(int argc, char **argv)
             std::cout << "client: res not well formed" << std::endl;
         } else {
             // write file
-            std::cout << "client: serialize res:\n" << res.serialize() << std::endl;
             write_file(uris[i], res.getBody().c_str(), true);
         }
 
@@ -171,12 +169,11 @@ int main(int argc, char **argv)
                 perror("client: recv");
                 exit(1);
             }
-
             buf[numbytes] = '\0';
-            std::cout << "client: recv\n" << buf << std::endl;
+            
             // append to file
             write_file(uris[i], buf, false);
-            
+
             bodylen += res.getBody().length();
         }
 

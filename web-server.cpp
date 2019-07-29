@@ -114,9 +114,8 @@ int main(int argc, char **argv)
                 perror("server: recv");
                 exit(1);
             }
-
             buf[numbytes] = '\0';
-            std::cout << "server: recv\n" << buf << std::endl;
+            std::cout << "server: recv" << std::endl;
 
             // parse request
             HttpRequest req = HttpRequest::parseRequest(std::string(buf));
@@ -124,8 +123,6 @@ int main(int argc, char **argv)
             if (req.getWellFormed() == false) {
                 std::cout << "server: req not well formed" << std::endl;
                 status = 400;
-            } else {
-                std::cout << "server: serialize req:\n" << req.serialize() << std::endl;
             }
 
             // read file and send response
@@ -153,7 +150,7 @@ int main(int argc, char **argv)
                 std::string body(buf);
                 HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body, fsize) : HttpResponse(status);
                 std::string res_msg = res.serialize();
-                std::cout << "server: serialize res: \n" << res_msg << std::endl;
+                std::cout << "server: send res:" << std::endl;
                 if (send(newfd, res_msg.c_str(), res_msg.length(), 0) < 0) {
                     perror("server: send");
                     exit(1);
