@@ -13,8 +13,8 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
-#include "fileio.h"
 #include "http-message.h"
 
 #define MAXDATASIZE 1024
@@ -128,26 +128,49 @@ int main(int argc, char **argv)
                 std::cout << "server: serialize req:\n" << req.serialize() << std::endl;
             }
 
-            // fetch file
-            std::string body;
-            if (status == 200) {
-                if (read_file(dir, req.getUri().c_str(), body) < 0) {
-                    status = 404;
+            // read file and send response
+            std::string uri = req.getUri();
+            char filename[dir.length() + uri.length() + 2] = {'\0'};
+            if (dir.substr(0,1) != ".")
+                strcpy(filename, ".");
+            strcat(filename, dir.c_str());
+            strcat(filename, "/");
+            strcat(filename, uri.c_str());
+
+            std::ifstream ifs(filename, std::ios::binary);
+            std::streampos fsize = ifs.tellg();
+            ifs.seekg(0, std::ios::end);
+            fsize = ifs.tellg() - fsize;
+            ifs.clear();
+            ifs.seekg(0, std::ios::beg);
+            if (ifs) {
+                // read file
+                memset( buf, '\0', sizeof(char)*MAXDATASIZE );
+                ifs.read(buf, MAXDATASIZE - 1);
+                buf[MAXDATASIZE - 1] = '\0';
+
+                // send response
+                std::string body(buf);
+                HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body, fsize) : HttpResponse(status);
+                std::string res_msg = res.serialize();
+                std::cout << "server: serialize res: \n" << res_msg << std::endl;
+                if (send(newfd, res_msg.c_str(), res_msg.length(), 0) < 0) {
+                    perror("server: send");
+                    exit(1);
                 }
             }
+            while (ifs) {
+                // read file
+                memset( buf, '\0', sizeof(char)*MAXDATASIZE );
+                ifs.read(buf, MAXDATASIZE - 1);
+                buf[MAXDATASIZE - 1] = '\0';
 
-            // send response
-            HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body, body.length()) : HttpResponse(status);
-            std::string res_msg = res.serialize();
-            std::cout << "server: serialize res: \n" << res_msg << std::endl;
-            
-            if (res_msg.length() > MAXDATASIZE) {
-                std::cerr << "server: message length" << std::endl;
-                exit(1);
-            }
-            if (send(newfd, res_msg.c_str(), res_msg.length(), 0) < 0) {
-                perror("server: send");
-                exit(1);
+                // send response
+                std::string body(buf);
+                if (send(newfd, buf, MAXDATASIZE - 1, 0) < 0) {
+                    perror("server: send");
+                    exit(1);
+                }
             }
 
             close(newfd);

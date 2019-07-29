@@ -103,10 +103,9 @@ std::string HttpRequest::serialize() {
         return "not well formed";
 
     std::ostringstream ss;
-    ss << method_ << " "
-        << uri_ << " "
-        << protocol_ << "\r\n"
-        << "Host: " << host_ << "\r\n\r\n";
+    ss << method_ << " " << uri_ << " " << protocol_ << "\r\n"
+        << "Host: " << host_ << "\r\n"
+        << "\r\n";
     return ss.str();
 }
 
@@ -160,15 +159,15 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
 /*
  * Http Response
  */
-HttpResponse::HttpResponse(int status, double version, std::string body, size_t bodylen)
-    : HttpMessage(version), body_(body), bodylen_(bodylen)
+HttpResponse::HttpResponse(int status, double version, std::string body, size_t contentlen)
+    : HttpMessage(version), body_(body), contentlen_(contentlen)
 {
     setStatus(status);
     setReason(status);
 }
 
 HttpResponse::HttpResponse(int status, double version)
-    : HttpMessage(version), body_(""), bodylen_(0)
+    : HttpMessage(version), body_(""), contentlen_(0)
 {
     setStatus(status);
     setReason(status_);
@@ -205,8 +204,8 @@ std::string HttpResponse::getBody() {
     return body_;
 }
 
-size_t HttpResponse::getBodylen() {
-    return bodylen_;
+size_t HttpResponse::getContentlen() {
+    return contentlen_;
 }
 
 std::string HttpResponse::serialize() {
@@ -214,9 +213,8 @@ std::string HttpResponse::serialize() {
     ss << protocol_ << " " << status_ << " " << reason_phrase_
         << "\r\n"
         << "Content-Type: text/html\r\n"
-        << "Content-Length: "
-        << bodylen_
-        << "\r\n\r\n"
+        << "Content-Length: " << contentlen_ << "\r\n"
+        << "\r\n"
         << body_;
     return ss.str();
 }

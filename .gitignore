@@ -3,4 +3,7 @@ web-client
 /test
 index.html
 a.txt
+b.txt
+c.txt
+large-file-1mb.txt
 .vscode

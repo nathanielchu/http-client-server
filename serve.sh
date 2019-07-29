@@ -4,5 +4,4 @@ make clean
 clear
 make
 ./web-server &
-./web-client http://localhost:4000/index.html http://localhost:4000/a.txt
-# wget http://localhost:4000/index.html
+./web-client http://localhost:4000/index.html http://localhost:4000/a.txt http://localhost:4000/b.txt

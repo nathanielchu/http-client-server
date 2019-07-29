@@ -41,13 +41,13 @@ protected:
 
 class HttpResponse : public HttpMessage {
 public:
-    HttpResponse(int status, double version, std::string body, size_t bodylen);
+    HttpResponse(int status, double version, std::string body, size_t contentlen_);
     HttpResponse(int status, double version = 1.0);
     void setStatus(int status);
     void setReason(int status);
 
     std::string getBody();
-    size_t getBodylen();
+    size_t getContentlen();
 
     std::string serialize();
     static HttpResponse parseResponse(std::string msg, double version);
@@ -56,7 +56,7 @@ protected:
     std::string reason_phrase_;
     double version_;
     std::string body_;
-    size_t bodylen_;
+    size_t contentlen_;
 };
 
 #endif // HTTP_MESSAGE

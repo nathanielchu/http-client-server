@@ -11,11 +11,23 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
-#include "fileio.h"
 #include "http-message.h"
 
 #define MAXDATASIZE 1024
+
+int write_file(const std::string path, const char *contents, bool is_head) {
+    std::ios_base::openmode flags = (is_head) ? std::ios::binary : (std::ios::binary | std::ios::app);
+    std::ofstream ofs(path.c_str(), flags);
+    if(ofs.is_open()) {
+        ofs.write(contents, strlen(contents));
+        ofs.close();
+        return 0;
+    }
+
+    return -1;
+}
 
 int main(int argc, char **argv)
 {
@@ -146,6 +158,26 @@ int main(int argc, char **argv)
             // write file
             std::cout << "client: serialize res:\n" << res.serialize() << std::endl;
             write_file(uris[i], res.getBody().c_str(), true);
+        }
+
+        // if more content to be received
+        size_t contentlen = res.getContentlen();
+        size_t bodylen = res.getBody().length();
+        while (bodylen < contentlen) {
+            // recv response
+            memset( buf, '\0', sizeof(char)*MAXDATASIZE );
+            numbytes = 0;
+            if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) < 0) {
+                perror("client: recv");
+                exit(1);
+            }
+
+            buf[numbytes] = '\0';
+            std::cout << "client: recv\n" << buf << std::endl;
+            // append to file
+            write_file(uris[i], buf, false);
+            
+            bodylen += res.getBody().length();
         }
 
         close(sockfd);

@@ -1,7 +1,7 @@
 CXX=g++
 CXXOPTIMIZE= -O2
 CXXFLAGS= -g -Wall -pthread -std=c++11 $(CXXOPTIMIZE)
-CLASSES= fileio.cpp http-message.cpp
+CLASSES= http-message.cpp
 
 all: web-server web-client
 
