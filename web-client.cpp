@@ -143,10 +143,10 @@ int main(int argc, char **argv)
         if (res.getWellFormed() == false) {
             std::cout << "client: res not well formed" << std::endl;
         } else {
+            // write file
             std::cout << "client: serialize res:\n" << res.serialize() << std::endl;
+            write_file(uris[i], res.getBody().c_str(), true);
         }
-
-        // write file
 
         close(sockfd);
     }

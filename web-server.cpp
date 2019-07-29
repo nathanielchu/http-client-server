@@ -137,7 +137,7 @@ int main(int argc, char **argv)
             }
 
             // send response
-            HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body) : HttpResponse(status);
+            HttpResponse res = (status == 200) ? HttpResponse(status, req.getVersion(), body, body.length()) : HttpResponse(status);
             std::string res_msg = res.serialize();
             std::cout << "server: serialize res: \n" << res_msg << std::endl;
             

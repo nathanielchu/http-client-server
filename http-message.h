@@ -26,12 +26,12 @@ public:
     void setMethod();
     void setUri(std::string uri);
     void setHost(std::string host);
-    std::string serialize();
 
     std::string getMethod();
     std::string getUri();
     std::string getHost();
 
+    std::string serialize();
     static HttpRequest parseRequest(std::string msg);
 protected:
     std::string method_;
@@ -41,17 +41,22 @@ protected:
 
 class HttpResponse : public HttpMessage {
 public:
-    HttpResponse(int status, double version, std::string body);
+    HttpResponse(int status, double version, std::string body, size_t bodylen);
     HttpResponse(int status, double version = 1.0);
+    void setStatus(int status);
     void setReason(int status);
-    std::string serialize();
 
+    std::string getBody();
+    size_t getBodylen();
+
+    std::string serialize();
     static HttpResponse parseResponse(std::string msg, double version);
 protected:
     int status_;
     std::string reason_phrase_;
     double version_;
     std::string body_;
+    size_t bodylen_;
 };
 
 #endif // HTTP_MESSAGE

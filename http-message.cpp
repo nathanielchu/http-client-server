@@ -94,6 +94,10 @@ void HttpRequest::setHost(std::string host) {
     }
 }
 
+std::string HttpRequest::getMethod() { return method_; }
+std::string HttpRequest::getUri() { return uri_; }
+std::string HttpRequest::getHost() { return host_; }
+
 std::string HttpRequest::serialize() {
     if (well_formed_ == false)
         return "not well formed";
@@ -105,10 +109,6 @@ std::string HttpRequest::serialize() {
         << "Host: " << host_ << "\r\n\r\n";
     return ss.str();
 }
-
-std::string HttpRequest::getMethod() { return method_; }
-std::string HttpRequest::getUri() { return uri_; }
-std::string HttpRequest::getHost() { return host_; }
 
 HttpRequest HttpRequest::parseRequest(std::string msg) {
     std::string delim = "\r\n";
@@ -161,17 +161,29 @@ HttpRequest HttpRequest::parseRequest(std::string msg) {
 /*
  * Http Response
  */
-HttpResponse::HttpResponse(int status, double version, std::string body)
-    : HttpMessage(version), status_(status), body_(body)
+HttpResponse::HttpResponse(int status, double version, std::string body, size_t bodylen)
+    : HttpMessage(version), body_(body), bodylen_(bodylen)
 {
+    setStatus(status);
     setReason(status);
 }
 
 HttpResponse::HttpResponse(int status, double version)
-    : HttpMessage(version), status_(status), body_("")
+    : HttpMessage(version), body_(""), bodylen_(0)
 {
-    setReason(status);
+    setStatus(status);
+    setReason(status_);
 }
+
+void HttpResponse::setStatus(int status) {
+    if (status > 200 && status < 300)
+        status_ = 200;
+    else if (status != 404 && status > 400 && status < 500)
+        status_ = 400;
+    else
+        status_ = status;
+}
+
 
 void HttpResponse::setReason(int status) {
     switch(status) {
@@ -190,26 +202,42 @@ void HttpResponse::setReason(int status) {
     }
 }
 
+std::string HttpResponse::getBody() {
+    return body_;
+}
+
+size_t HttpResponse::getBodylen() {
+    return bodylen_;
+}
+
 std::string HttpResponse::serialize() {
     std::ostringstream ss;
-    ss << protocol_ << " " << status_ << reason_phrase_
+    ss << protocol_ << " " << status_ << " " << reason_phrase_
         << "\r\n"
         << "Content-Type: text/html\r\n"
         << "Content-Length: "
-        << body_.length()
+        << bodylen_
         << "\r\n\r\n"
         << body_;
     return ss.str();
 }
 
+bool isNumber(std::string str) {
+    std::istringstream ss(str);
+    int num;
+    char c;
+    if (!(ss >> num) || (ss.get(c)))
+        return false;
+    return true;
+}
+
 HttpResponse HttpResponse::parseResponse(std::string msg, double version) {
-    std::string delim = "\r\n";
-    size_t pos = msg.find(delim);
+    size_t pos = msg.find("\r\n");
     std::string status_line = msg.substr(0, pos);
     std::string header = msg.substr(pos+2);
 
     // parse status_line
-    delim = " ";
+    std::string delim = " ";
     pos = status_line.find(delim);
     std::string protocol = status_line.substr(0, pos);
     if (protocol.substr(0, 5) != "HTTP/") {
@@ -218,16 +246,29 @@ HttpResponse HttpResponse::parseResponse(std::string msg, double version) {
     }
 
     size_t prev = pos + 1;
-    pos = status_line.find('\r', prev);
+    pos = status_line.find(delim, prev);
     std::string status = status_line.substr(prev, pos-prev);
-    std::istringstream ss(status);
-    int status_code;
-    char c;
-    if (!(ss >> status_code) || (ss.get(c))) {
+    if (isNumber(status) == false) {
         std::cerr << "http status code not well formed" << std::endl;
         return HttpResponse(400, version);
     }
 
+    // parse header
+    prev = header.find("Content-Length:");
+    prev = header.find(delim, prev) + 1;
+    pos = header.find("\r\n", prev);
+    std::string content_length = header.substr(prev, pos-prev);
+    if (isNumber(content_length) == false) {
+        std::cerr << "http entity header Content-Length not well formed" << std::endl;
+        return HttpResponse(400, version);
+    }
 
-    return HttpResponse(400, 1.0, "");
+    pos = header.find("\r\n\r\n") + 4;
+    if (pos == std::string::npos) {
+        std::cerr << "http message-body not well formed" << std::endl;
+        return HttpResponse(400, version);
+    }
+    std::string content = header.substr(pos, stoi(content_length));
+    
+    return HttpResponse(200, version, content, stoi(content_length));
 }
